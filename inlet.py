@@ -1,7 +1,8 @@
 import streamlit as st
 import pandas as pd
+import altair as alt
 
-# Page Configuration - centered layout is often better for mobile focus
+# Page Configuration - centered layout for mobile focus
 st.set_page_config(
     page_title="ParaInlet",
     page_icon="✈️",
@@ -19,7 +20,6 @@ if 'inlets' not in st.session_state:
 # --- Configuration ---
 with st.container():
     st.write("### Setup")
-    # Number of Inlets
     num_inlets = st.number_input(
         "Number of Inlets", 
         min_value=1, 
@@ -37,7 +37,10 @@ if current_count < num_inlets:
             "mach": 2.0, 
             "pr_th": 0.98,
             "pt_i": 101325.0, 
-            "pt_e": 95000.0, 
+            "pt_e": 95000.0,
+            "pt_max": 98000.0,
+            "pt_min": 92000.0,
+            "pt_avg": 95000.0,
             "tt_i": 300.0, 
             "tt_e": 350.0, 
             "t_i": 280.0, 
@@ -67,17 +70,23 @@ if num_inlets > 0:
             d["pr_th"] = st.number_input("Theor. PR (Pt,e/Pt,i)th", value=d["pr_th"], key=f"pr{i}", format="%.3f")
             
             # Pressure
-            st.caption("Total Pressures (Pa)")
-            d["pt_i"] = st.number_input("Inlet (Pt,i)", value=d["pt_i"], key=f"pti{i}")
-            d["pt_e"] = st.number_input("Exit (Pt,e)", value=d["pt_e"], key=f"pte{i}")
+            st.caption("Total Pressures [Pa]")
+            d["pt_i"] = st.number_input("Inlet (Pt,i) [Pa]", value=d["pt_i"], key=f"pti{i}")
+            d["pt_e"] = st.number_input("Exit (Pt,e) [Pa]", value=d["pt_e"], key=f"pte{i}")
+            
+            st.caption("Distortion Parameters [Pa]")
+            rc1, rc2, rc3 = st.columns(3)
+            d["pt_max"] = rc1.number_input("Pt,max", value=d["pt_max"], key=f"pmax{i}")
+            d["pt_min"] = rc2.number_input("Pt,min", value=d["pt_min"], key=f"pmin{i}")
+            d["pt_avg"] = rc3.number_input("Pt,avg", value=d["pt_avg"], key=f"pavg{i}")
             
             # Temperature
-            st.caption("Temperatures (K)")
+            st.caption("Temperatures [K]")
             tc1, tc2 = st.columns(2)
-            d["tt_i"] = tc1.number_input("Total T In (Tt,i)", value=d["tt_i"], key=f"tti{i}")
-            d["tt_e"] = tc2.number_input("Total T Out (Tt,e)", value=d["tt_e"], key=f"tte{i}")
-            d["t_i"] = tc1.number_input("Static T In (Ti)", value=d["t_i"], key=f"ti{i}")
-            d["t_e"] = tc2.number_input("Static T Out (Te)", value=d["t_e"], key=f"te{i}")
+            d["tt_i"] = tc1.number_input("Total T In (Tt,i) [K]", value=d["tt_i"], key=f"tti{i}")
+            d["tt_e"] = tc2.number_input("Total T Out (Tt,e) [K]", value=d["tt_e"], key=f"tte{i}")
+            d["t_i"] = tc1.number_input("Static T In (Ti) [K]", value=d["t_i"], key=f"ti{i}")
+            d["t_e"] = tc2.number_input("Static T Out (Te) [K]", value=d["t_e"], key=f"te{i}")
 
 st.divider()
 
@@ -105,8 +114,13 @@ def calculate_parameters(data):
         num = (data["gamma"] - 1) * (data["mach"]**2) / 2
         term2 = (1 - ke_eff) / (static_temp_ratio - 1)
         ad_eff = 1 - (num * term2)
-        
-    # 4. Shock Compression Efficiency (ηshock)
+    
+    # 4. Distortion Index (DI)
+    di = 0.0
+    if data["pt_avg"] > 0:
+        di = (data["pt_max"] - data["pt_min"]) / data["pt_avg"]
+
+    # 5. Shock Compression Efficiency (ηshock)
     shock_eff = 0.0
     if data["pr_th"] > 0:
         shock_eff = recovery / data["pr_th"]
@@ -116,13 +130,23 @@ def calculate_parameters(data):
         "Recovery": recovery,
         "KE Eff (%)": ke_eff * 100,
         "Adiabatic Eff (%)": ad_eff * 100,
-        "Shock Eff (%)": shock_eff * 100
+        "Shock Eff (%)": shock_eff * 100,
+        "Distortion": di
     }
+
+def plot_colored_chart(df, x_col, y_col, title):
+    # Using Altair to ensure each bar (Inlet) has a different color
+    c = alt.Chart(df).mark_bar().encode(
+        x=alt.X(x_col, axis=alt.Axis(labelAngle=0)),
+        y=y_col,
+        color=alt.Color(x_col, legend=None), # This ensures distinct colors per inlet
+        tooltip=[x_col, y_col]
+    ).properties(title=title)
+    st.altair_chart(c, use_container_width=True)
 
 # --- Main Content Area ---
 if st.button("Calculate Results", type="primary", use_container_width=True):
     
-    # Perform Calculations
     results = [calculate_parameters(inlet) for inlet in st.session_state.inlets]
     df = pd.DataFrame(results)
     
@@ -133,23 +157,20 @@ if st.button("Calculate Results", type="primary", use_container_width=True):
             "Recovery": "{:.4f}",
             "KE Eff (%)": "{:.2f}%",
             "Adiabatic Eff (%)": "{:.2f}%",
-            "Shock Eff (%)": "{:.2f}%"
+            "Shock Eff (%)": "{:.2f}%",
+            "Distortion": "{:.4f}"
         }),
         use_container_width=True
     )
     
     # 2. Visualizations
     st.subheader("📈 Charts")
-    chart_df = df.set_index("Name")
     
-    st.markdown("##### Kinetic Energy Efficiency (%)")
-    st.bar_chart(chart_df["KE Eff (%)"], use_container_width=True)
-    
-    st.markdown("##### Adiabatic Comp. Efficiency (%)")
-    st.bar_chart(chart_df["Adiabatic Eff (%)"], use_container_width=True)
-    
-    st.markdown("##### Pressure Recovery (π)")
-    st.bar_chart(chart_df["Recovery"], use_container_width=True)
+    plot_colored_chart(df, "Name", "KE Eff (%)", "Kinetic Energy Efficiency (%)")
+    plot_colored_chart(df, "Name", "Adiabatic Eff (%)", "Adiabatic Comp. Efficiency (%)")
+    plot_colored_chart(df, "Name", "Recovery", "Pressure Recovery (π)")
+    plot_colored_chart(df, "Name", "Distortion", "Distortion Index (DI)")
+    plot_colored_chart(df, "Name", "Shock Eff (%)", "Shock Comp. Efficiency (%)")
 
 else:
     st.info("Enter parameters and click Calculate.")
