@@ -1,5 +1,5 @@
 # **ParaInlet Application**
-
+Made by Shreyas Shriyan, Tanvi Terade and Shezan Ghamat :)
 **Version:** 1.0
 
 **Type:** Streamlit Web Application
