@@ -1,6 +1,6 @@
 # **ParaInlet Application**
 Made by Shreyas Shriyan, Tanvi Terade and Shezan Ghamat :)
-**Version:** 1.0
+**Version:** 2.0
 
 **Type:** Streamlit Web Application
 
@@ -17,7 +17,7 @@ Made by Shreyas Shriyan, Tanvi Terade and Shezan Ghamat :)
 
 1. **Save the File:** Ensure the source code is saved as inlet copy.py (or your preferred filename) in a local directory.  
 2. **Install Dependencies:** Open your terminal or command prompt and run the following command to install the necessary libraries:  
-   pip install streamlit pandas altair
+   pip install -r requirements.txt
 
 ### **1.3 How to Run**
 
@@ -28,6 +28,13 @@ streamlit run inlet.py
 * The application will automatically launch in your default web browser.  
 * The default local address is usually http://localhost:8501.  
 * To stop the server, press Ctrl \+ C in your terminal.
+
+## **What's new in 2.0**
+
+* Wide layout with a sidebar; results update live (no Calculate button).
+* New charts: recovery-vs-distortion trade-off bubble chart, recovery vs Mach with the MIL-E-5008B curve, scorecard heatmap, grouped efficiency comparison, value-labelled bars with a consistent colour per inlet.
+* New metrics: pressure loss, MIL-E-5008B reference recovery and delta, temperature ratios, composite score, best-inlet KPI cards.
+* Presets (subsonic pitot, normal shock, external/mixed compression), CSV import/export, reset, and input validation warnings.
 
 ## **2\. Overview**
 
